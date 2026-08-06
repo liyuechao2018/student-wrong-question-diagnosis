@@ -133,6 +133,7 @@ def render_card(item, checks):
     action = tex(item["action"])
     tags = item.get("tags", [])
     checked = set(item.get("checked", []))
+    mark = item.get("mark", "")
 
     kind_cls = "kind wrong" if kind == "错题" else "kind"
     kind_text = "错题" if kind == "错题" else "巩固"
@@ -154,11 +155,13 @@ def render_card(item, checks):
 
     tags_html = "".join(f'<span class="tag"><b>{k}</b> {v}</span>' for k, v in tags)
 
+    mark_html = f" ｜ 选取：{mark}" if mark else ""
+
     return f"""  <section class="card">
     <h2><span class="num">{no}</span> {title}<span class="{kind_cls}">{kind_text}</span></h2>
     <div class="origin">
       <b>【原题】</b> {origin}
-      <span class="src">来源：{page}</span>
+      <span class="src">来源：{page}{mark_html}</span>
     </div>
     <div class="blk"><div class="lab">① 这题考什么？</div>
       <div class="body">知识点：{title}；核心能力：{ability}。</div>
@@ -180,10 +183,12 @@ def render_card(item, checks):
 """
 
 
-def build_cdn(data_mod, out_html, student_name, pdf_name, date_str):
+def build_cdn(data_mod, out_html, student_name, pdf_name, date_str, select_method=None):
     cards_html = "\n".join(render_card(c, data_mod.CHECKS) for c in data_mod.CARDS)
     wrong_count = sum(1 for c in data_mod.CARDS if c["kind"] == "错题")
     total = len(data_mod.CARDS)
+    cons = total - wrong_count
+    method_text = f" ｜ 选取方式：{select_method}" if select_method else ""
 
     html_doc = (
         '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n'
@@ -197,10 +202,10 @@ def build_cdn(data_mod, out_html, student_name, pdf_name, date_str):
         f"<style>\n{STYLE}\n</style>\n"
         '</head>\n<body>\n<div class="wrap">\n'
         f'  <h1 class="doc-title">错题诊断卡 · {student_name}（完整版）</h1>\n'
-        f'  <p class="doc-meta">日期：{date_str} ｜ 扫描源：{pdf_name} ｜ '
-        f'荧光笔圈出共：<b>{total} 道</b>（错题 {wrong_count} 道，巩固 {total-wrong_count} 道）</p>\n'
+        f'  <p class="doc-meta">日期：{date_str} ｜ 扫描源：{pdf_name}{method_text} ｜ '
+        f'共 <b>{total} 道</b>（错题 {wrong_count} 道，巩固 {cons} 道）</p>\n'
         f"{cards_html}"
-        f'  <p class="foot">生成时间：{date_str} · 按页码与知识点排序 · 荧光笔圈出全部并入</p>\n'
+        f'  <p class="foot">生成时间：{date_str} · 按页码与知识点排序</p>\n'
         '</div>\n</body>\n</html>\n'
     )
     out_path = pathlib.Path(out_html)
@@ -437,7 +442,8 @@ def do_generate(args):
             "思维不完整 / 计算失误 / 审题问题）。"
         )
     try:
-        out_path = build_cdn(mod, args.out, args.name, args.pdf, args.date)
+        select_method = getattr(mod, "SELECT_METHOD", None)
+        out_path = build_cdn(mod, args.out, args.name, args.pdf, args.date, select_method)
     except OSError as e:
         raise SkillError(
             f"写入输出文件失败：{args.out}\n原因：{e}\n"
