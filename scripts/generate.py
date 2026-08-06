@@ -24,8 +24,17 @@ import pathlib
 import re
 import base64
 import sys
+import json
+import urllib.request
 
 BS = chr(92)  # 反斜杠
+
+# 离线字体来源：当本地 katex-dist 缺失时，从 GitHub 仓库自动拉取（一次性联网）。
+# 这样即便 SkillHub CLI 拉取时剔除了嵌套的 assets/katex-dist/ 子目录，
+# 生成离线卡时也能自动补齐字体，保证「拉取后开箱即用」。
+GITHUB_REPO = "liyuechao2018/student-wrong-question-diagnosis"
+GITHUB_BRANCH = "main"
+KATEX_DIST_PREFIX = "assets/katex-dist"
 
 
 class SkillError(Exception):
@@ -226,7 +235,59 @@ def inline_fonts(css, fonts_dir):
     return re.sub(url_pat, repl, css)
 
 
+def _download_katex_dist(dist):
+    """从 GitHub 仓库递归拉取 katex-dist 目录（一次性联网）。"""
+    api = (f"https://api.github.com/repos/{GITHUB_REPO}/git/trees/"
+           f"{GITHUB_BRANCH}?recursive=1")
+    req = urllib.request.Request(api, headers={"User-Agent": "skill-generate"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        tree = json.load(r)
+    prefix = KATEX_DIST_PREFIX + "/"
+    files = [t["path"] for t in tree.get("tree", [])
+             if t.get("type") == "blob" and t["path"].startswith(prefix)]
+    if not files:
+        raise RuntimeError("GitHub 仓库中未找到 katex-dist 文件")
+    dist.mkdir(parents=True, exist_ok=True)
+    for rel in files:
+        sub = rel[len(prefix):]          # 相对 katex-dist 的路径
+        target = dist / sub
+        target.parent.mkdir(parents=True, exist_ok=True)
+        raw = (f"https://raw.githubusercontent.com/{GITHUB_REPO}/"
+               f"{GITHUB_BRANCH}/{rel}")
+        req2 = urllib.request.Request(raw, headers={"User-Agent": "skill-generate"})
+        with urllib.request.urlopen(req2, timeout=60) as rr:
+            target.write_bytes(rr.read())
+    return len(files)
+
+
+def ensure_katex_dist(dist_dir):
+    """确保离线所需的 katex-dist 存在且完整；缺失则自动从 GitHub 拉取。"""
+    dist = pathlib.Path(dist_dir)
+    complete = (
+        dist.is_dir()
+        and (dist / "katex.min.css").is_file()
+        and (dist / "fonts").is_dir()
+        and len(list((dist / "fonts").glob("*.woff2"))) > 0
+    )
+    if complete:
+        return  # 已存在且完整 → 纯离线，无需联网
+    print("⚠️ 本地未找到完整的 katex-dist，正在从 GitHub 仓库自动获取"
+          f"（{GITHUB_REPO}，需联网一次）…", file=sys.stderr)
+    try:
+        n = _download_katex_dist(dist)
+    except Exception as e:
+        raise SkillError(
+            f"离线资源目录缺失，且自动从 GitHub 获取失败：{e}\n"
+            f"请手动获取后重试：\n"
+            f"  git clone https://github.com/{GITHUB_REPO}.git _katex_tmp\n"
+            f"  再将 --offline 指向 _katex_tmp/{KATEX_DIST_PREFIX}"
+        )
+    print(f"✔ 已从 GitHub 获取 katex-dist（{n} 个文件）到 {dist}",
+          file=sys.stderr)
+
+
 def rebuild_offline(raw_path, dist_dir):
+    ensure_katex_dist(dist_dir)
     dist = pathlib.Path(dist_dir)
     if not dist.is_dir():
         raise SkillError(
