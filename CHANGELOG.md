@@ -10,6 +10,15 @@ SkillHub 从 GitHub 拉取时，依据该字段判断是否需要更新；每次
 
 ---
 
+## [1.1.3] - 2026-08-06
+
+### 修复（平台兼容）
+- **SkillHub 平台禁止上传字体二进制**（`.ttf`/`.woff`/`.woff2` 均被后端拒绝）。改为把离线所需字体以 **base64 写入 `assets/katex-dist/fonts_b64.json`**（`.json` 为平台允许类型）。
+- `scripts/generate.py`：新增 `load_font_b64_map()`，`inline_fonts()` 改为从「`fonts_b64.json` → `fonts/` 目录」两级收集字体 base64 内联；正则**仅匹配 `.woff2`**（离线 HTML 只需 woff2，现代浏览器均支持，woff/ttf fallback 缺失不影响渲染）。字体彻底缺失时才回退到 GitHub 联网拉取。
+- 效果：从 SkillHub 安装的 Skill **零字体文件、完全离线、开箱即用**；实测仅含 `fonts_b64.json` 时生成 0 个 CDN 引用、20 字体内联。
+
+---
+
 ## [1.1.1] - 2026-08-06
 
 ### 修复

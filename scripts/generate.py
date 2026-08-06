@@ -212,25 +212,49 @@ def build_cdn(data_mod, out_html, student_name, pdf_name, date_str):
 
 # ---------- 离线嵌入（移植自 rebuild_offline.py，DIST 改为参数） ----------
 
-def inline_fonts(css, fonts_dir):
+def load_font_b64_map(dist):
+    """收集离线字体 base64：优先目录里的 .woff2，再用 fonts_b64.json 补充。
+
+    SkillHub 等平台禁止上传字体二进制（.ttf/.woff/.woff2），因此发布时把
+    字体以 base64 形式存入 fonts_b64.json（.json 为平台允许类型），离线生成
+    时从此处内联，实现「零字体文件、完全离线」。目录里若有真实 .woff2 也兼容。
+    """
+    dist = pathlib.Path(dist)
+    b64_map = {}
+    fonts_dir = dist / "fonts"
+    if fonts_dir.is_dir():
+        for f in fonts_dir.glob("*.woff2"):
+            b64_map[f.name] = base64.b64encode(f.read_bytes()).decode()
+    json_path = dist / "fonts_b64.json"
+    if json_path.is_file():
+        try:
+            data = json.loads(json_path.read_text(encoding="utf-8"))
+            for k, v in data.items():
+                if k not in b64_map:
+                    b64_map[k] = v
+        except Exception:
+            pass  # 损坏的 json 忽略，交给后续兜底
+    return b64_map
+
+
+def inline_fonts(css, b64_map):
     bs = chr(92)
     qt = chr(39)
     dq = chr(34)
+    # 仅内联 .woff2（离线 HTML 只需 woff2，现代浏览器均支持；woff/ttf 作为
+    # 不存在的 fallback 会被浏览器忽略，不影响渲染）。
     url_pat = ("url" + bs + "(" + "([" + qt + dq + "]?)" + "(" + "fonts/[^"
-               + qt + dq + ")]+" + ")" + bs + "1" + bs + ")")
+               + qt + dq + "]*?" + bs + ".woff2)" + bs + "1" + bs + ")")
 
     def repl(m):
         rel = m.group(2)
-        p = fonts_dir / pathlib.Path(rel).name
-        if not p.is_file():
+        name = pathlib.Path(rel).name
+        if name not in b64_map:
             raise SkillError(
                 f"离线字体缺失：{rel}\n"
-                f"请确认 katex-dist/fonts/ 完整（应含 60 个字体文件，"
-                f"参考 assets/MANIFEST.md 校验）。"
+                f"请确认存在 fonts_b64.json（含 20 个 woff2 base64）或完整的 fonts/ 目录。"
             )
-        data = p.read_bytes()
-        b64 = base64.b64encode(data).decode()
-        return "url(data:font/woff2;base64," + b64 + ")"
+        return "url(data:font/woff2;base64," + b64_map[name] + ")"
 
     return re.sub(url_pat, repl, css)
 
@@ -287,13 +311,12 @@ def ensure_katex_dist(dist_dir):
 
 
 def rebuild_offline(raw_path, dist_dir):
-    ensure_katex_dist(dist_dir)
     dist = pathlib.Path(dist_dir)
     if not dist.is_dir():
         raise SkillError(
             f"离线资源目录不存在：{dist_dir}\n"
             f"请确认 --offline 指向 KaTeX 的 dist 目录"
-            f"（需含 katex.min.css、katex.min.js、fonts/）。"
+            f"（需含 katex.min.css、katex.min.js、fonts_b64.json 或 fonts/）。"
         )
     missing = [
         r for r in ("katex.min.css", "katex.min.js",
@@ -305,11 +328,15 @@ def rebuild_offline(raw_path, dist_dir):
             "离线资源不完整，缺少以下文件：\n  " + "\n  ".join(missing) + "\n"
             "请确认 --offline 指向完整的 katex-dist 目录。"
         )
-    fonts_dir = dist / "fonts"
-    if not fonts_dir.is_dir() or len(list(fonts_dir.glob("*.woff2"))) == 0:
+    # 优先从 fonts_b64.json / 目录收集字体 base64；都为空才走 GitHub 联网兜底
+    b64_map = load_font_b64_map(dist)
+    if not b64_map:
+        ensure_katex_dist(dist_dir)
+        b64_map = load_font_b64_map(dist)
+    if not b64_map:
         raise SkillError(
-            "离线字体目录 fonts/ 不存在或没有 .woff2 字体，无法内联公式。\n"
-            "请确认 katex-dist/fonts/ 完整（详见 assets/MANIFEST.md）。"
+            "离线字体缺失，且自动从 GitHub 获取失败。\n"
+            "请确认 katex-dist 含 fonts_b64.json（20 个 woff2 base64）或完整 fonts/ 目录。"
         )
     bs = chr(92)
     qt = chr(39)
@@ -326,7 +353,7 @@ def rebuild_offline(raw_path, dist_dir):
     styles = re.findall("<style>[" + bs + "s" + bs + "S]*?</style>", raw)
     orig_style = next((s for s in styles if "@font-face" not in s), "")
 
-    katex_css = inline_fonts((dist / "katex.min.css").read_text(encoding="utf-8"), fonts_dir)
+    katex_css = inline_fonts((dist / "katex.min.css").read_text(encoding="utf-8"), b64_map)
     katex_js = (dist / "katex.min.js").read_text(encoding="utf-8").replace(
         "</script>", "<" + bs + "/script>")
     mhchem_js = (dist / "contrib" / "mhchem.min.js").read_text(
