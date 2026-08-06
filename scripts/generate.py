@@ -27,6 +27,11 @@ import sys
 
 BS = chr(92)  # 反斜杠
 
+
+class SkillError(Exception):
+    """业务层面错误，携带可理解的中文说明，避免向用户抛出英文 traceback。"""
+
+
 STYLE = """
 html{color-scheme:light}
 :root{
@@ -208,6 +213,12 @@ def inline_fonts(css, fonts_dir):
     def repl(m):
         rel = m.group(2)
         p = fonts_dir / pathlib.Path(rel).name
+        if not p.is_file():
+            raise SkillError(
+                f"离线字体缺失：{rel}\n"
+                f"请确认 katex-dist/fonts/ 完整（应含 60 个字体文件，"
+                f"参考 assets/MANIFEST.md 校验）。"
+            )
         data = p.read_bytes()
         b64 = base64.b64encode(data).decode()
         return "url(data:font/woff2;base64," + b64 + ")"
@@ -217,7 +228,28 @@ def inline_fonts(css, fonts_dir):
 
 def rebuild_offline(raw_path, dist_dir):
     dist = pathlib.Path(dist_dir)
+    if not dist.is_dir():
+        raise SkillError(
+            f"离线资源目录不存在：{dist_dir}\n"
+            f"请确认 --offline 指向 KaTeX 的 dist 目录"
+            f"（需含 katex.min.css、katex.min.js、fonts/）。"
+        )
+    missing = [
+        r for r in ("katex.min.css", "katex.min.js",
+                    "contrib/auto-render.min.js", "contrib/mhchem.min.js")
+        if not (dist / r).is_file()
+    ]
+    if missing:
+        raise SkillError(
+            "离线资源不完整，缺少以下文件：\n  " + "\n  ".join(missing) + "\n"
+            "请确认 --offline 指向完整的 katex-dist 目录。"
+        )
     fonts_dir = dist / "fonts"
+    if not fonts_dir.is_dir() or len(list(fonts_dir.glob("*.woff2"))) == 0:
+        raise SkillError(
+            "离线字体目录 fonts/ 不存在或没有 .woff2 字体，无法内联公式。\n"
+            "请确认 katex-dist/fonts/ 完整（详见 assets/MANIFEST.md）。"
+        )
     bs = chr(92)
     qt = chr(39)
     dq = chr(34)
@@ -264,13 +296,33 @@ def rebuild_offline(raw_path, dist_dir):
 
 
 def load_module(py_path):
-    spec = importlib.util.spec_from_file_location("cards_data_user", py_path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    p = pathlib.Path(py_path)
+    if not p.is_file():
+        raise SkillError(
+            f"找不到数据文件：{py_path}\n"
+            f"请检查 --data 参数指向的 .py 文件是否存在、路径是否正确。"
+        )
+    try:
+        spec = importlib.util.spec_from_file_location("cards_data_user", str(p))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except SyntaxError as e:
+        raise SkillError(
+            f"数据文件存在语法错误：{p.name}\n"
+            f"第 {e.lineno} 行附近：{e.msg}\n"
+            f"请检查卡片数据里的引号、括号、多行字符串是否成对。"
+        )
+    except SkillError:
+        raise
+    except Exception as e:
+        raise SkillError(
+            f"加载数据文件失败：{p.name}\n原因：{e}\n"
+            f"请确认该文件是标准的 cards_data 模块（需定义 CARDS 列表与 CHECKS 列表）。"
+        )
     return mod
 
 
-def main():
+def parse_args():
     parser = argparse.ArgumentParser(description="生成学生错题诊断卡 HTML（便携版）")
     parser.add_argument("--data", required=True, help="cards_data 模块路径（.py）")
     parser.add_argument("--out", required=True, help="输出 HTML 路径")
@@ -280,15 +332,55 @@ def main():
     parser.add_argument("--offline", default=None,
                         help="KaTeX dist 目录（含 katex.min.css/js、contrib/、fonts/），"
                              "传入则生成完全离线单文件")
-    args = parser.parse_args()
+    return parser.parse_args()
 
+
+def do_generate(args):
     mod = load_module(args.data)
-    out_path = build_cdn(mod, args.out, args.name, args.pdf, args.date)
-
+    if not hasattr(mod, "CARDS"):
+        raise SkillError(
+            "数据文件缺少 CARDS 列表。\n"
+            "请按 assets/cards_data_template.py 模板，定义每张卡片的字典列表 CARDS。"
+        )
+    if not hasattr(mod, "CHECKS"):
+        raise SkillError(
+            "数据文件缺少 CHECKS 列表。\n"
+            "请定义错误归因维度 CHECKS（如：知识没掌握 / 方法没想到 /"
+            "思维不完整 / 计算失误 / 审题问题）。"
+        )
+    try:
+        out_path = build_cdn(mod, args.out, args.name, args.pdf, args.date)
+    except OSError as e:
+        raise SkillError(
+            f"写入输出文件失败：{args.out}\n原因：{e}\n"
+            f"请检查输出目录是否存在、是否有写入权限。"
+        )
     if args.offline:
         rebuild_offline(out_path, args.offline)
     else:
         print("OFFLINE skipped (CDN mode). 传入 --offline <katex-dist> 可生成离线版。")
+
+
+def main():
+    args = parse_args()  # 参数解析失败由 argparse 自动给出友好提示
+    try:
+        do_generate(args)
+    except SkillError as e:
+        print("\n❌ 生成失败：", file=sys.stderr)
+        print(str(e), file=sys.stderr)
+        sys.exit(2)
+    except FileNotFoundError as e:
+        print(f"\n❌ 找不到文件：{getattr(e, 'filename', e)}", file=sys.stderr)
+        print("请检查相关路径是否正确。", file=sys.stderr)
+        sys.exit(2)
+    except KeyboardInterrupt:
+        print("\n已取消。", file=sys.stderr)
+        sys.exit(130)
+    except Exception as e:
+        print(f"\n❌ 生成过程中出现意外错误：{e}", file=sys.stderr)
+        print("如无法自行解决，请检查卡片数据格式或参考 references/ 下的说明。",
+              file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
