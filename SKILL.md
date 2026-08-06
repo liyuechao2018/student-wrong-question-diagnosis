@@ -2,7 +2,7 @@
 name: student-wrong-question-diagnosis
 slug: student-wrong-question-diagnosis
 displayName: 学生错题诊断卡（离线 · 荧光笔圈题识别）
-version: 1.0.0
+version: 1.1.0
 description: This skill converts a student's scanned wrong-question PDF—where questions are marked with a highlighter—into a self-contained offline HTML diagnosis card deck (KaTeX, zero internet) and a 7-step Markdown diagnosis report. Built for teachers/tutors/students doing AI-assisted error attribution. Standard trigger phrases (any one works): "处理学生错题扫描件", "生成错题诊断卡", "整理荧光笔圈出的错题", "把圈出的错题做成诊断卡", "离线打包错题卡". Also triggers when building, validating, or offline-packaging such a card deck, or bootstrapping from the bundled template. See the "触发方式" section for the authoritative list.
 author: 李悦超
 license: MIT

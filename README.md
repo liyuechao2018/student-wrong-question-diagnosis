@@ -4,6 +4,8 @@
 
 > 适用于：老师 / 家教 / 学生。零依赖、断网可用。
 
+> 📌 当前版本：**v1.1.0** · 版本号见 `SKILL.md` 顶部 `version` 字段 · 变更记录见 [CHANGELOG.md](CHANGELOG.md) · 更新方式见下文「版本与从 GitHub 更新」
+
 ---
 
 ## ✨ 核心特性
@@ -27,6 +29,7 @@ student-wrong-question-diagnosis/
 ├── assets/
 │   ├── cards_data_template.py    # 卡片数据填空骨架（错题/巩固两示例）
 │   └── katex-dist/               # 内置 KaTeX（60 字体 + JS），离线零配置
+│       └── MANIFEST.md           # 资源完整性证明（60 字体 + 核心脚本 SHA-256 校验和）
 └── references/
     ├── workflow.md               # 7 步工作流 + 荧光笔约定 + 清单兜底
     ├── schema.md                 # 卡片字段 + CHECKS 五维
@@ -80,6 +83,24 @@ python scripts/generate.py \
 2. 用**荧光笔圈出**要整理的题目（圈出 = 错题；蓝笔例题/变式/已订正不用圈）；
 3. 给 Buddy 一张小纸条：姓名 / 科目 / 日期 / 文件名，圈不清就列「第几页第几题」；
 4. 把扫描 PDF + 本工具箱一起发给自己的 AI 助手即可。
+
+---
+
+## 📌 版本与从 GitHub 更新
+
+版本号以 `SKILL.md` 顶部 frontmatter 的 `version` 字段为准（当前 `version: 1.1.0`）。每次有实质改动时**递增该字段**，并在 [CHANGELOG.md](CHANGELOG.md) 记录本次变更；仓库同时打有对应 git tag（如 `v1.1.0`），可在 GitHub Releases 查看每个版本差异。
+
+**① 从 SkillHub 拉取更新（推荐）**
+在 SkillHub 中关联本 GitHub 仓库后，拉取即按 `version` 字段检测新版本并自动覆盖更新，**无需手动下载**。只要 GitHub 上的 `version` 比已安装的高，下次拉取就会更新。
+
+**② 手动更新（git 方式）**
+```bash
+cd ~/.workbuddy/skills/student-wrong-question-diagnosis
+git pull origin main
+```
+更新后重启 AI 助手会话即可加载新版本。
+
+> 提示：所有改动都先进入 GitHub（本仓库），SkillHub 再从这里拉取——**GitHub 仓库就是唯一的版本发放源**。
 
 ---
 
