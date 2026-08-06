@@ -1,16 +1,16 @@
 # 学生错题诊断 Skill · Student Wrong-Question Diagnosis
 
-把**荧光笔圈出**的错题扫描件，一键转成**离线可看、公式不乱码**的错题诊断卡网页 + 7 步归因报告。
+把学生的错题扫描件 / 照片，一键转成**离线可看、公式不乱码**的错题诊断卡网页 + 7 步归因报告。题目怎么标出来**不强求**——荧光笔圈、手绘框、直接拍错题页都行。
 
 > 适用于：老师 / 家教 / 学生。零依赖、断网可用。
 
-> 📌 当前版本：**v1.1.0** · 版本号见 `SKILL.md` 顶部 `version` 字段 · 变更记录见 [CHANGELOG.md](CHANGELOG.md) · 更新方式见下文「版本与从 GitHub 更新」
+> 📌 当前版本：**v1.1.4** · 版本号见 `SKILL.md` 顶部 `version` 字段 · 变更记录见 [CHANGELOG.md](CHANGELOG.md) · 更新方式见下文「版本与从 GitHub 更新」
 
 ---
 
 ## ✨ 核心特性
 
-- **荧光笔即指令**：扫描件里用荧光笔圈出的题目 = 待整理错题；蓝笔写的例题 / 变式 / 已订正当「巩固」卡。零学习成本。
+- **选取方式非必须**：荧光笔圈、手绘框 / 画圈、直接拍错题页、或给「第几页第几题」清单，任一方式都能标出想诊断的题；仅拍错题页时整页即目标。零学习成本。
 - **完全离线**：诊断卡是单文件 HTML，60 个 KaTeX 字体全部内联，断网也能渲染公式，可打印、可转发。
 - **五维错误归因**：知识没掌握 / 方法没想到 / 思维不完整 / 计算失误 / 审题问题 —— 报告直接说清卡在哪一环。
 - **零依赖生成器**：`scripts/generate.py` 只依赖 Python 3，无需安装任何第三方库。
@@ -31,7 +31,7 @@ student-wrong-question-diagnosis/
 │   └── katex-dist/               # 内置 KaTeX（60 字体 + JS），离线零配置
 │       └── MANIFEST.md           # 资源完整性证明（60 字体 + 核心脚本 SHA-256 校验和）
 └── references/
-    ├── workflow.md               # 7 步工作流 + 荧光笔约定 + 清单兜底
+    ├── workflow.md               # 7 步工作流 + 选取方式约定（非必须）+ 无效框选处置 + 清单兜底
     ├── schema.md                 # 卡片字段 + CHECKS 五维
     ├── formula.md                # 公式约定（<bs> 占位 / wrap_ce / 常见坑）
     └── report.md                 # 7 段报告结构 + 台账格式
@@ -88,7 +88,7 @@ python scripts/generate.py \
 
 ## 📌 版本与从 GitHub 更新
 
-版本号以 `SKILL.md` 顶部 frontmatter 的 `version` 字段为准（当前 `version: 1.1.0`）。每次有实质改动时**递增该字段**，并在 [CHANGELOG.md](CHANGELOG.md) 记录本次变更；仓库同时打有对应 git tag（如 `v1.1.0`），可在 GitHub Releases 查看每个版本差异。
+版本号以 `SKILL.md` 顶部 frontmatter 的 `version` 字段为准（当前 `version: 1.1.4`）。每次有实质改动时**递增该字段**，并在 [CHANGELOG.md](CHANGELOG.md) 记录本次变更；仓库同时打有对应 git tag（如 `v1.1.4`），可在 GitHub Releases 查看每个版本差异。
 
 **① 从 SkillHub 拉取更新（推荐）**
 在 SkillHub 中关联本 GitHub 仓库后，拉取即按 `version` 字段检测新版本并自动覆盖更新，**无需手动下载**。只要 GitHub 上的 `version` 比已安装的高，下次拉取就会更新。
