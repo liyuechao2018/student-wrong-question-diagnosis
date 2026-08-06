@@ -10,6 +10,14 @@ SkillHub 从 GitHub 拉取时，依据该字段判断是否需要更新；每次
 
 ---
 
+## [1.1.1] - 2026-08-06
+
+### 修复
+- `SKILL.md` 的 `description` 字段原为单行未加引号的 YAML 标量，内含冒号（`any one works):`）导致 SkillHub CLI（`skillhub install --no-api`）与网页端解析 frontmatter 失败。**改为 `>-` 块标量**，冒号/引号均安全，可被正常拉取。
+- 顺带明确"从 GitHub 拉取"的命令：`skillhub install --no-api <owner>/<repo>`（跳过 API、直接 clone 仓库）。
+
+---
+
 ## [1.1.0] - 2026-08-06
 
 ### 新增
