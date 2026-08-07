@@ -118,8 +118,76 @@ def wrap_ce(s):
     return "".join(out)
 
 
+# KaTeX 不直接认这些 Unicode 数学符号（如 ∈、Δ、⇒、≤），学生容易直接
+# 粘贴过来导致公式解析失败。tex() 在还原 <bs> 之后，会对所有 \(...\) 和
+# $$...$$ 公式块内的 Unicode 自动转 LaTeX 命令，做到"写错了也能渲"。
+_UNICODE_TO_LATEX = {
+    # 集合 / 关系
+    "∈": r" \in ", "∉": r" \notin ",
+    "⊂": r" \subset ", "⊆": r" \subseteq ",
+    "⊃": r" \supset ", "⊇": r" \supseteq ",
+    "∪": r" \cup ", "∩": r" \cap ", "∅": r" \emptyset ",
+    # 箭头
+    "⇒": r" \Rightarrow ", "⇐": r" \Leftarrow ", "⇔": r" \Leftrightarrow ",
+    "→": r" \to ", "←": r" \leftarrow ", "↔": r" \leftrightarrow ",
+    "↦": r" \mapsto ",
+    # 不等 / 序
+    "≤": r" \leq ", "≥": r" \geq ", "≠": r" \neq ",
+    "≪": r" \ll ", "≫": r" \gg ", "≺": r" \prec ", "≻": r" \succ ",
+    # 希腊大写（KaTeX 认 \Delta 但不认 Unicode）
+    "Δ": r" \Delta ", "Σ": r" \Sigma ", "Π": r" \Pi ", "Ω": r" \Omega ",
+    "Θ": r" \Theta ", "Λ": r" \Lambda ", "Φ": r" \Phi ", "Ψ": r" \Psi ",
+    # 希腊小写
+    "α": r" \alpha ", "β": r" \beta ", "γ": r" \gamma ", "δ": r" \delta ",
+    "ε": r" \epsilon ", "ζ": r" \zeta ", "η": r" \eta ",
+    "θ": r" \theta ", "ι": r" \iota ", "κ": r" \kappa ",
+    "λ": r" \lambda ", "μ": r" \mu ", "ν": r" \nu ",
+    "ξ": r" \xi ", "π": r" \pi ", "ρ": r" \rho ",
+    "σ": r" \sigma ", "τ": r" \tau ", "φ": r" \phi ", "χ": r" \chi ",
+    "ψ": r" \psi ", "ω": r" \omega ",
+    # 算子
+    "∞": r" \infty ", "∂": r" \partial ",
+    "±": r" \pm ", "∓": r" \mp ",
+    "×": r" \times ", "÷": r" \div ", "·": r" \cdot ",
+    "√": r" \sqrt{} ",
+    "∑": r" \sum ", "∏": r" \prod ", "∫": r" \int ", "∮": r" \oint ",
+    "∮": r" \oint ",
+    # 其他
+    "≈": r" \approx ", "≡": r" \equiv ", "≅": r" \cong ",
+    "∝": r" \propto ", "⊥": r" \perp ", "∥": r" \parallel ",
+    "∠": r" \angle ", "∴": r" \therefore ", "∵": r" \because ",
+    # 中文括号/全角标点在公式里换成 ASCII，避免 KaTeX 报错
+    "（": r"(", "）": r")",
+    "，": r",\ ", "；": r";\ ", "：": r":\ ",
+}
+
+
+def _latex_unicode_fix(s):
+    """对单段文本中的 Unicode 数学符号做 LaTeX 命令替换。"""
+    out = s
+    for k, v in _UNICODE_TO_LATEX.items():
+        out = out.replace(k, v)
+    return out
+
+
+def _fix_math_blocks(s):
+    """仅在 \\( ... \\) 与 $$ ... $$ 公式块内做 Unicode → LaTeX 兜底；
+    块外的中文/全角标点/换行保持原样不被污染。"""
+    def repl_inline(m):
+        return _latex_unicode_fix(m.group(0))
+    s = re.sub(r"\\\([\s\S]*?\\\)", repl_inline, s)
+    s = re.sub(r"\$\$[\s\S]*?\$\$", repl_inline, s)
+    return s
+
+
 def tex(s):
-    return wrap_ce(s.replace("<bs>", BS))
+    """还原 <bs> 为 \\，对公式块内 Unicode 数学符号做 LaTeX 兜底，
+    再把裸的 \\ce{...}（化学式）自动包进 \\(...\\) 供 KaTeX 渲染。"""
+    if s is None:
+        return ""
+    s = s.replace("<bs>", BS)
+    s = _fix_math_blocks(s)
+    return wrap_ce(s)
 
 
 def render_card(item, checks):

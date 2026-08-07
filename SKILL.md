@@ -2,7 +2,7 @@
 name: student-wrong-question-diagnosis
 slug: student-wrong-question-diagnosis
 displayName: 学生错题诊断卡（离线 · 错题选取灵活）
-version: 1.1.4
+version: 1.1.5
 description: >-
   This skill converts a student's scanned or photographed wrong-question material—where the questions to diagnose are indicated by the student (highlighter circles, hand-drawn boxes/frames, or directly photographed wrong-question pages)—into a self-contained offline HTML diagnosis card deck (KaTeX, zero internet) and a 7-step Markdown diagnosis report. Built for teachers/tutors/students doing AI-assisted error attribution. The marking method is OPTIONAL and never mandatory: circling, boxing, or simply photographing the problem pages all work. Standard trigger phrases (any one works): "处理学生错题扫描件", "生成错题诊断卡", "整理荧光笔圈出的错题", "把我框出来的错题做成卡", "把拍的错题整理成诊断卡", "离线打包错题卡". Also triggers when building, validating, or offline-packaging such a card deck, or bootstrapping from the bundled template. See the "触发方式" section for the authoritative list.
 author: 李悦超

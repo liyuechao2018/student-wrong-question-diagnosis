@@ -4,7 +4,7 @@
 
 > 适用于：老师 / 家教 / 学生。零依赖、断网可用。
 
-> 📌 当前版本：**v1.1.4** · 版本号见 `SKILL.md` 顶部 `version` 字段 · 变更记录见 [CHANGELOG.md](CHANGELOG.md) · 更新方式见下文「版本与从 GitHub 更新」
+> 📌 当前版本：**v1.1.5** · 版本号见 `SKILL.md` 顶部 `version` 字段 · 变更记录见 [CHANGELOG.md](CHANGELOG.md) · 更新方式见下文「版本与从 GitHub 更新」
 
 ---
 

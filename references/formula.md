@@ -23,3 +23,25 @@
 
 ## 校验方法
 生成后用 node katex `renderToString({throwOnError:true})` 抽验每条 `\(...\)`，FAIL 即回到卡片修正对应 LaTeX。
+
+## Unicode 数学符号 → LaTeX 自动兜底（v1.1.5+）
+**问题**：学生/老师在写公式时常直接粘贴 `∈ Δ ⇒ ≤ ≥ ≠ π θ ± × √` 等 Unicode 数学符号，KaTeX 不认这些，渲染时会报 `Unsupported` 并把后续内容截断。
+
+**解法**：`generate.py` 的 `tex()` 现在在还原 `<bs>` 之后，会对**所有 `\(...\)` / `$$...$$` 公式块内**的 Unicode 数学符号自动转 LaTeX 命令。块外的中文 / 全角括号 / 中文标点**完全保留原样**不被污染。
+
+当前覆盖的对照（块内生效，块外不替换）：
+
+| Unicode | → LaTeX | 类别 |
+|---------|---------|------|
+| `∈ ∉` | `\in \notin` | 集合 |
+| `⊂ ⊆ ⊃ ⊇ ∪ ∩ ∅` | `\subset \subseteq ... \emptyset` | 集合 |
+| `⇒ ⇐ ⇔ → ← ↦` | `\Rightarrow \Leftarrow \Leftrightarrow \to \leftarrow \mapsto` | 箭头 |
+| `≤ ≥ ≠ ≪ ≫` | `\leq \geq \neq \ll \gg` | 不等/序 |
+| `Δ Σ Π Ω Θ Λ Φ Ψ` | `\Delta \Sigma \Pi \Omega ...` | 希腊大写 |
+| `α β γ δ ... ω` | `\alpha \beta \gamma \delta ... \omega` | 希腊小写 |
+| `∞ ∂ ± ∓ × ÷ · √` | `\infty \partial \pm \mp \times \div \cdot \sqrt{}` | 算子 |
+| `∑ ∏ ∫ ∮ ≈ ≡ ≅ ∝ ⊥ ∠` | `\sum \prod \int \oint \approx \equiv \cong \propto \perp \angle` | 其他 |
+| `（ ）` 在公式里 | `(` `)` | 中→ASCII 括号 |
+| `， ； ：` 在公式里 | `, ` `; ` `: ` | 全角→半角标点 |
+
+**仍然推荐**在数据里直接写 LaTeX 命令（更可控、避免歧义），但**写错也不会再让整条公式挂掉**——这是兜底层。
